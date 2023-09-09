@@ -16,6 +16,7 @@ const { isValidAdminToken } = require('./controllers/coreControllers/authJwtCont
 
 const errorHandlers = require('./handlers/errorHandlers');
 const erpApiRouter = require('./routes/erpRoutes/erpApi');
+const { logger } = require('./setup/logger');
 
 // create our Express app
 const app = express();
@@ -59,6 +60,23 @@ app.use('/api', coreAuthRouter);
 app.use('/api', isValidAdminToken, coreApiRouter);
 app.use('/api', isValidAdminToken, erpApiRouter);
 app.use('/download', coreDownloadRouter);
+
+app.use((err,req,res,next) => {
+  const errorStatus=err.status || 500;
+  const  errorMsg= err.message || constants.responseMessages[errorStatus];
+  logger.error({
+    url: req.protocol + '://' + req.get('host') + req.originalUrl,
+    statusCode: errorStatus,
+    message: "error",
+    response: {message:errorMsg},
+    headers:req.headers,
+    reqBody:req.body || constants.logMessages.NoRequestBody,
+    method: req.method
+  });
+  return res.status(errorStatus).send(
+      errorMsg
+  );
+});
 
 // If that above routes didnt work, we 404 them and forward to error handler
 app.use(errorHandlers.notFound);
